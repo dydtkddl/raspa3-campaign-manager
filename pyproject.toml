@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "raspa-campaign-manager"
+version = "0.2.1.dev8"
+description = "Fail-closed, resumable RASPA3 campaign orchestration, parsing, scheduling, and monitoring"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{name = "PSID Lab"}]
+license = {text = "Research-use software; see LICENSE"}
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: POSIX :: Linux",
+  "Topic :: Scientific/Engineering :: Chemistry",
+]
+
+[project.optional-dependencies]
+parquet = ["pyarrow>=12"]
+dev = ["pytest>=7"]
+
+[project.scripts]
+raspa-campaign = "raspa_campaign.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
