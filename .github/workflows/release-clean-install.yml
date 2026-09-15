@@ -1,0 +1,139 @@
+name: Release Clean Install
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "GitHub Release tag to validate"
+        required: true
+        default: "v0.2.1.dev8"
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  clean-install:
+    name: Clean install / Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - name: Resolve release tag
+        id: tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${{ github.event.release.tag_name }}"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Testing release: $TAG"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Download FULL release bundle and checksum
+        shell: bash
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          FULL="RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL.zip"
+          SHA="${FULL}.sha256"
+          BASE="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}"
+
+          curl -fL --retry 3 -o "$FULL" "$BASE/$FULL"
+          curl -fL --retry 3 -o "$SHA" "$BASE/$SHA"
+
+          test -s "$FULL"
+          test -s "$SHA"
+
+      - name: Verify FULL ZIP SHA-256
+        shell: bash
+        run: |
+          set -euo pipefail
+          FULL="RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL.zip"
+          EXPECTED="$(awk 'NF{print $1; exit}' "${FULL}.sha256")"
+          ACTUAL="$(sha256sum "$FULL" | awk '{print $1}')"
+
+          echo "expected=$EXPECTED"
+          echo "actual  =$ACTUAL"
+          test "$EXPECTED" = "$ACTUAL"
+
+      - name: Verify ZIP integrity and required members
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import zipfile
+          p = "RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL.zip"
+          required = {
+              "RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL/INSTALL_RASPA3_CAMPAIGN_MANAGER_WSL_v0.2.1.dev8.sh",
+              "RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL/RUN_RCM_DEV8_INSTALL_SMOKE_TEST.sh",
+              "RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL/raspa_campaign_manager-0.2.1.dev8-py3-none-any.whl",
+              "RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL/raspa_campaign_manager_v0.2.1.dev8.pyz",
+              "RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL/RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_SOURCE.zip",
+          }
+          with zipfile.ZipFile(p) as z:
+              bad = z.testzip()
+              if bad:
+                  raise SystemExit(f"ZIP CRC error: {bad}")
+              missing = sorted(required - set(z.namelist()))
+              if missing:
+                  raise SystemExit("Missing members: " + ", ".join(missing))
+          print("ZIP_CRC=PASS")
+          print("EXPECTED_MEMBERS=PASS")
+          PY
+
+      - name: Extract FULL bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          unzip -q RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL.zip
+
+      - name: Clean install into isolated HOME
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TEST_HOME="$RUNNER_TEMP/rcm-clean-home"
+          mkdir -p "$TEST_HOME"
+
+          PKG="$GITHUB_WORKSPACE/RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL"
+          FULL="$GITHUB_WORKSPACE/RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL.zip"
+
+          HOME="$TEST_HOME" \
+            bash "$PKG/INSTALL_RASPA3_CAMPAIGN_MANAGER_WSL_v0.2.1.dev8.sh" \
+              --bundle "$FULL"
+
+          CLI="$TEST_HOME/.local/opt/raspa-campaign-manager/releases/0.2.1.dev8/venv/bin/raspa-campaign"
+
+          test -x "$CLI"
+          test "$("$CLI" --version)" = "raspa-campaign 0.2.1.dev8"
+
+          HOME="$TEST_HOME" \
+            bash "$PKG/RUN_RCM_DEV8_INSTALL_SMOKE_TEST.sh"
+
+      - name: Summary
+        shell: bash
+        run: |
+          {
+            echo "## Release clean-install PASS"
+            echo ""
+            echo "- Tag: \`${{ steps.tag.outputs.tag }}\`"
+            echo "- Python: \`${{ matrix.python-version }}\`"
+            echo "- FULL ZIP checksum: PASS"
+            echo "- ZIP CRC: PASS"
+            echo "- isolated install: PASS"
+            echo "- CLI smoke test: PASS"
+          } >> "$GITHUB_STEP_SUMMARY"

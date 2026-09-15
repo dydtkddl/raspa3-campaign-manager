@@ -1,0 +1,75 @@
+name: Source CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-smoke:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Show environment
+        run: |
+          python --version
+          python3 --version
+          git rev-parse HEAD
+
+      - name: Compile package
+        run: |
+          python -m compileall -q src
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --no-deps .
+
+      - name: Verify exact package version
+        run: |
+          test "$(raspa-campaign --version)" = "raspa-campaign 0.2.1.dev8"
+
+      - name: Verify top-level CLI
+        run: |
+          raspa-campaign --help
+          raspa-campaign pbs --help
+          raspa-campaign pbs render --help
+          raspa-campaign pbs submit --help
+          raspa-campaign run --help
+
+      - name: Verify required commands
+        shell: bash
+        run: |
+          set -euo pipefail
+          HELP="$(raspa-campaign --help)"
+          required=(
+            init doctor validate build plan inventory preview-inputs estimate-storage
+            run collect status task retry recover claims reparse export audit
+            compress-logs drain resume qualify qc pbs dashboard migrate
+            stage-upgrade-data archive
+          )
+          for cmd in "${required[@]}"; do
+            grep -Eq "(^|[,{[:space:]])${cmd}([,}[:space:]]|$)" <<<"$HELP" || {
+              echo "Missing command: $cmd" >&2
+              exit 1
+            }
+            echo "PASS $cmd"
+          done
