@@ -18,11 +18,11 @@ and uses the first interpreter with Python >=3.11.
 
 ## Download
 
-From the GitHub Release `v0.2.1.dev8`, download:
+From the GitHub Release `v0.2.1`, download:
 
 ```text
-RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL.zip
-RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL.zip.sha256
+RASPA3_CAMPAIGN_MANAGER_v0.2.1_FULL.zip
+RASPA3_CAMPAIGN_MANAGER_v0.2.1_FULL.zip.sha256
 ```
 
 ## Verify the FULL ZIP
@@ -30,8 +30,8 @@ RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL.zip.sha256
 ```bash
 cd /mnt/c/Users/user/Downloads
 
-cat RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL.zip.sha256
-sha256sum RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL.zip
+cat RASPA3_CAMPAIGN_MANAGER_v0.2.1_FULL.zip.sha256
+sha256sum RASPA3_CAMPAIGN_MANAGER_v0.2.1_FULL.zip
 ```
 
 The hashes must match.
@@ -39,16 +39,16 @@ The hashes must match.
 ## Install side-by-side
 
 ```bash
-unzip -q RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL.zip
-cd RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL
+unzip -q RASPA3_CAMPAIGN_MANAGER_v0.2.1_FULL.zip
+cd RASPA3_CAMPAIGN_MANAGER_v0.2.1_FULL
 
-bash INSTALL_RASPA3_CAMPAIGN_MANAGER_WSL_v0.2.1.dev8.sh
+bash INSTALL_RASPA3_CAMPAIGN_MANAGER_WSL_v0.2.1.sh
 ```
 
 Default installation:
 
 ```text
-~/.local/opt/raspa-campaign-manager/releases/0.2.1.dev8/
+~/.local/opt/raspa-campaign-manager/releases/0.2.1/
 ```
 
 The default installer does **not** change the existing `current` symlink.
@@ -56,19 +56,19 @@ The default installer does **not** change the existing `current` symlink.
 ## Verify
 
 ```bash
-~/.local/opt/raspa-campaign-manager/releases/0.2.1.dev8/venv/bin/raspa-campaign --version
+~/.local/opt/raspa-campaign-manager/releases/0.2.1/venv/bin/raspa-campaign --version
 ```
 
 Expected:
 
 ```text
-raspa-campaign 0.2.1.dev8
+raspa-campaign 0.2.1
 ```
 
 ## Installation smoke test
 
 ```bash
-bash RUN_RCM_DEV8_INSTALL_SMOKE_TEST.sh
+bash RUN_RCM_0_2_1_INSTALL_SMOKE_TEST.sh
 ```
 
 Expected:
@@ -84,7 +84,7 @@ This validates the installed CLI surface; it does not execute RASPA3 and is not 
 If dev8 is already installed:
 
 ```bash
-bash INSTALL_RASPA3_CAMPAIGN_MANAGER_WSL_v0.2.1.dev8.sh \
+bash INSTALL_RASPA3_CAMPAIGN_MANAGER_WSL_v0.2.1.sh \
   --force-reinstall
 ```
 

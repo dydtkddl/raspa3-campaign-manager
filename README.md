@@ -2,7 +2,7 @@
 
 Fail-closed, resumable orchestration for large RASPA3 adsorption campaigns across local/WSL and GA/OpenPBS environments.
 
-> Current validated candidate: **0.2.1.dev8**
+> Current stable release: **0.2.1**
 
 ## What it does
 
@@ -20,29 +20,32 @@ RASPA3 Campaign Manager provides one execution layer for:
 
 It is **not** a replacement for RASPA3 and does not automatically validate force fields, gas models, charges, cutoffs, cycle counts, or convergence.
 
-## Validated 0.2.1.dev8 scope
+## Validated 0.2.1 execution scope
 
-The candidate has been exercised in:
+The stable release preserves the dev8 runtime implementation and is promoted after qualification of:
 
-- a real WSL RASPA3 calculation
-- a real GA/OpenPBS single-task end-to-end calculation
+- real WSL RASPA3 execution
+- real GA/OpenPBS execution
 - final production-average loading parsing
 - `PENDING → CLAIMED → RUNNING → COMPLETE`
-- evidence/audit and export
-- versioned FULL bundle installation
-- Python >=3.11 auto-discovery
-- isolated side-by-side venv installation
-- CLI installation smoke test
+- evidence/audit/export/archive workflows
+- public GitHub FULL-bundle distribution
+- Python 3.11 / 3.12 / 3.13 CI and clean installation
+- two-task / two-chunk concurrent PBS execution on GA
+- shared-NFS claim ownership without duplicate task execution
+- four-task / two-chunk / two-worker manager execution
+- four overlapping native RASPA3 process intervals
+- direct CPU sampling showing four independent RASPA3 processes consuming approximately four CPU cores concurrently
 
-Large concurrent multi-worker production remains a separate qualification scope.
+The concurrency qualification is an execution/orchestration result. It is not a claim of adsorption stationarity, universal scientific parity, or performance superiority.
 
 ## Install
 
-Download these two assets from the `v0.2.1.dev8` GitHub Release:
+Download these two assets from the `v0.2.1` GitHub Release:
 
 ```text
-RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL.zip
-RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL.zip.sha256
+RASPA3_CAMPAIGN_MANAGER_v0.2.1_FULL.zip
+RASPA3_CAMPAIGN_MANAGER_v0.2.1_FULL.zip.sha256
 ```
 
 Then:
@@ -50,28 +53,32 @@ Then:
 ```bash
 cd /mnt/c/Users/user/Downloads
 
-sha256sum RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL.zip
+sha256sum -c RASPA3_CAMPAIGN_MANAGER_v0.2.1_FULL.zip.sha256
 
-unzip -q RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL.zip
-cd RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL
+unzip -q RASPA3_CAMPAIGN_MANAGER_v0.2.1_FULL.zip
+cd RASPA3_CAMPAIGN_MANAGER_v0.2.1_FULL
 
-bash INSTALL_RASPA3_CAMPAIGN_MANAGER_WSL_v0.2.1.dev8.sh
-bash RUN_RCM_DEV8_INSTALL_SMOKE_TEST.sh
+bash INSTALL_RASPA3_CAMPAIGN_MANAGER_WSL_v0.2.1.sh
+bash RUN_RCM_0_2_1_INSTALL_SMOKE_TEST.sh
+```
+
+To make 0.2.1 the global `current` release after validation:
+
+```bash
+bash INSTALL_RASPA3_CAMPAIGN_MANAGER_WSL_v0.2.1.sh --force-reinstall --set-current
 ```
 
 Verify:
 
 ```bash
-~/.local/opt/raspa-campaign-manager/releases/0.2.1.dev8/venv/bin/raspa-campaign --version
+~/.local/opt/raspa-campaign-manager/releases/0.2.1/venv/bin/raspa-campaign --version
 ```
 
 Expected:
 
 ```text
-raspa-campaign 0.2.1.dev8
+raspa-campaign 0.2.1
 ```
-
-See [Installation](docs/INSTALLATION.md) and [Quick Start](docs/QUICK_START.md).
 
 ## Basic workflow
 
@@ -109,7 +116,7 @@ raspa-campaign pbs render --root <campaign>
 raspa-campaign pbs submit --root <campaign> --yes
 ```
 
-See [GA / OpenPBS Guide](docs/GA_OPENPBS.md).
+`pbs.allowed_hosts` is a fail-closed runtime allowlist. When scheduler placement must be constrained to a specific GA node, set `pbs.host` explicitly.
 
 ## Documentation
 
@@ -118,10 +125,13 @@ See [GA / OpenPBS Guide](docs/GA_OPENPBS.md).
 - [GA / OpenPBS](docs/GA_OPENPBS.md)
 - [Recovery & Retry](docs/RECOVERY_RETRY.md)
 - [CLI Reference](docs/CLI_REFERENCE.md)
+- [0.2.1 release notes](docs/RELEASE_NOTES_v0.2.1.md)
 - [Documentation map](docs/DOCS_SITE_MAP.md)
 
 ## Release policy
 
-`0.2.1.dev8` is published as a **pre-release candidate**, not as an assertion that every scientific model or large-scale concurrency mode has been qualified.
+`0.2.1` is the stable promotion of the qualified `0.2.1.dev8` runtime.
 
-Release assets are versioned and should not be replaced in-place after publication.
+The promotion changes release/version metadata, documentation, and release CI packaging logic. Runtime implementation files are frozen relative to dev8 except for `src/raspa_campaign/__init__.py`, where only the release identity/version string changes.
+
+Release assets are immutable after publication; corrections require a new version.

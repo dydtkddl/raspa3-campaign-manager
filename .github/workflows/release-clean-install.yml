@@ -6,7 +6,7 @@ on:
       tag:
         description: "GitHub Release tag to validate"
         required: true
-        default: "v0.2.1.dev8"
+        default: "v0.2.1"
   release:
     types: [published]
 
@@ -23,8 +23,8 @@ jobs:
         python-version: ["3.11", "3.12", "3.13"]
 
     steps:
-      - name: Resolve release tag
-        id: tag
+      - name: Resolve release identity
+        id: release
         shell: bash
         run: |
           set -euo pipefail
@@ -33,8 +33,17 @@ jobs:
           else
             TAG="${{ github.event.release.tag_name }}"
           fi
+          VER="${TAG#v}"
+          FULL="RASPA3_CAMPAIGN_MANAGER_v${VER}_FULL.zip"
+          ROOT="RASPA3_CAMPAIGN_MANAGER_v${VER}_FULL"
+          INSTALLER="INSTALL_RASPA3_CAMPAIGN_MANAGER_WSL_v${VER}.sh"
+          SMOKE="RUN_RCM_${VER//./_}_INSTALL_SMOKE_TEST.sh"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "Testing release: $TAG"
+          echo "ver=$VER" >> "$GITHUB_OUTPUT"
+          echo "full=$FULL" >> "$GITHUB_OUTPUT"
+          echo "root=$ROOT" >> "$GITHUB_OUTPUT"
+          echo "installer=$INSTALLER" >> "$GITHUB_OUTPUT"
+          echo "smoke=$SMOKE" >> "$GITHUB_OUTPUT"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -44,85 +53,83 @@ jobs:
       - name: Download FULL release bundle and checksum
         shell: bash
         env:
-          TAG: ${{ steps.tag.outputs.tag }}
+          TAG: ${{ steps.release.outputs.tag }}
+          FULL: ${{ steps.release.outputs.full }}
         run: |
           set -euo pipefail
-
-          FULL="RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL.zip"
-          SHA="${FULL}.sha256"
           BASE="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}"
-
-          curl -fL --retry 3 -o "$FULL" "$BASE/$FULL"
-          curl -fL --retry 3 -o "$SHA" "$BASE/$SHA"
-
+          curl -fL --retry 5 --retry-all-errors -o "$FULL" "$BASE/$FULL"
+          curl -fL --retry 5 --retry-all-errors -o "${FULL}.sha256" "$BASE/${FULL}.sha256"
           test -s "$FULL"
-          test -s "$SHA"
+          test -s "${FULL}.sha256"
 
       - name: Verify FULL ZIP SHA-256
         shell: bash
+        env:
+          FULL: ${{ steps.release.outputs.full }}
         run: |
           set -euo pipefail
-          FULL="RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL.zip"
-          EXPECTED="$(awk 'NF{print $1; exit}' "${FULL}.sha256")"
-          ACTUAL="$(sha256sum "$FULL" | awk '{print $1}')"
-
-          echo "expected=$EXPECTED"
-          echo "actual  =$ACTUAL"
-          test "$EXPECTED" = "$ACTUAL"
+          sha256sum -c "${FULL}.sha256"
 
       - name: Verify ZIP integrity and required members
         shell: bash
+        env:
+          FULL: ${{ steps.release.outputs.full }}
+          ROOT: ${{ steps.release.outputs.root }}
+          INSTALLER: ${{ steps.release.outputs.installer }}
+          SMOKE: ${{ steps.release.outputs.smoke }}
+          VER: ${{ steps.release.outputs.ver }}
         run: |
           set -euo pipefail
           python - <<'PY'
-          import zipfile
-          p = "RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL.zip"
-          required = {
-              "RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL/INSTALL_RASPA3_CAMPAIGN_MANAGER_WSL_v0.2.1.dev8.sh",
-              "RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL/RUN_RCM_DEV8_INSTALL_SMOKE_TEST.sh",
-              "RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL/raspa_campaign_manager-0.2.1.dev8-py3-none-any.whl",
-              "RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL/raspa_campaign_manager_v0.2.1.dev8.pyz",
-              "RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL/RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_SOURCE.zip",
+          import os, zipfile
+          p=os.environ["FULL"]; root=os.environ["ROOT"]; ver=os.environ["VER"]
+          required={
+              f"{root}/{os.environ['INSTALLER']}",
+              f"{root}/{os.environ['SMOKE']}",
+              f"{root}/raspa_campaign_manager-{ver}-py3-none-any.whl",
+              f"{root}/raspa_campaign_manager_v{ver}.pyz",
+              f"{root}/RASPA3_CAMPAIGN_MANAGER_v{ver}_SOURCE.zip",
+              f"{root}/qualification_evidence/CPU_PARALLELISM_RESULT.json",
+              f"{root}/qualification_evidence/QUALIFICATION_RESULT.json",
           }
           with zipfile.ZipFile(p) as z:
-              bad = z.testzip()
+              bad=z.testzip()
               if bad:
                   raise SystemExit(f"ZIP CRC error: {bad}")
-              missing = sorted(required - set(z.namelist()))
+              missing=sorted(required-set(z.namelist()))
               if missing:
-                  raise SystemExit("Missing members: " + ", ".join(missing))
+                  raise SystemExit("Missing members: "+", ".join(missing))
           print("ZIP_CRC=PASS")
           print("EXPECTED_MEMBERS=PASS")
           PY
 
       - name: Extract FULL bundle
         shell: bash
+        env:
+          FULL: ${{ steps.release.outputs.full }}
         run: |
           set -euo pipefail
-          unzip -q RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL.zip
+          unzip -q "$FULL"
 
       - name: Clean install into isolated HOME
         shell: bash
+        env:
+          FULL: ${{ steps.release.outputs.full }}
+          ROOT: ${{ steps.release.outputs.root }}
+          INSTALLER: ${{ steps.release.outputs.installer }}
+          SMOKE: ${{ steps.release.outputs.smoke }}
+          VER: ${{ steps.release.outputs.ver }}
         run: |
           set -euo pipefail
-
           TEST_HOME="$RUNNER_TEMP/rcm-clean-home"
           mkdir -p "$TEST_HOME"
-
-          PKG="$GITHUB_WORKSPACE/RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL"
-          FULL="$GITHUB_WORKSPACE/RASPA3_CAMPAIGN_MANAGER_v0.2.1.dev8_FULL.zip"
-
-          HOME="$TEST_HOME" \
-            bash "$PKG/INSTALL_RASPA3_CAMPAIGN_MANAGER_WSL_v0.2.1.dev8.sh" \
-              --bundle "$FULL"
-
-          CLI="$TEST_HOME/.local/opt/raspa-campaign-manager/releases/0.2.1.dev8/venv/bin/raspa-campaign"
-
+          PKG="$GITHUB_WORKSPACE/$ROOT"
+          HOME="$TEST_HOME" bash "$PKG/$INSTALLER" --bundle "$GITHUB_WORKSPACE/$FULL"
+          CLI="$TEST_HOME/.local/opt/raspa-campaign-manager/releases/$VER/venv/bin/raspa-campaign"
           test -x "$CLI"
-          test "$("$CLI" --version)" = "raspa-campaign 0.2.1.dev8"
-
-          HOME="$TEST_HOME" \
-            bash "$PKG/RUN_RCM_DEV8_INSTALL_SMOKE_TEST.sh"
+          test "$("$CLI" --version)" = "raspa-campaign $VER"
+          HOME="$TEST_HOME" bash "$PKG/$SMOKE"
 
       - name: Summary
         shell: bash
@@ -130,7 +137,7 @@ jobs:
           {
             echo "## Release clean-install PASS"
             echo ""
-            echo "- Tag: \`${{ steps.tag.outputs.tag }}\`"
+            echo "- Tag: \`${{ steps.release.outputs.tag }}\`"
             echo "- Python: \`${{ matrix.python-version }}\`"
             echo "- FULL ZIP checksum: PASS"
             echo "- ZIP CRC: PASS"

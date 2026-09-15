@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "raspa-campaign-manager"
-version = "0.2.1.dev8"
+version = "0.2.1"
 description = "Fail-closed, resumable RASPA3 campaign orchestration, parsing, scheduling, and monitoring"
 readme = "README.md"
 requires-python = ">=3.11"

@@ -17,3 +17,4 @@
 13. Recipes
 14. Developer / Architecture
 15. Release Notes
+- `RELEASE_NOTES_v0.2.1.md` — stable release scope and qualification basis
